@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mars Rover Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { 
+      font-family: 'Segoe UI', system-ui, sans-serif; 
+      background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%); 
+      color: #fff; min-height: 100vh; overflow-x: hidden;
+    }
+    
+    .header { 
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); 
+      padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); 
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 300; }
+    .status { padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600; }
+    .status.connected { background: #10b981; }
+    .status.disconnected { background: #ef4444; }
+    
+    .alert { 
+      background: linear-gradient(45deg, #dc2626, #b91c1c); 
+      padding: 1rem; margin: 1rem; border-radius: 12px; 
+      box-shadow: 0 4px 20px rgba(220,38,38,0.3); display: none;
+    }
+
+    .auto-status {
+      background: linear-gradient(45deg, #3b82f6, #2563eb);
+      padding: 1rem; margin: 1rem; border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.3); display: none;
+      font-weight: 500; text-align: center;
+    }
+    
+    .container { 
+      display: grid; grid-template-columns: 1fr 1fr 1fr; 
+      gap: 1.5rem; padding: 1.5rem; max-width: 1400px; margin: 0 auto;
+    }
+    
+    .card { 
+      background: rgba(255,255,255,0.08); backdrop-filter: blur(15px); 
+      border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .card h3 { margin-bottom: 1rem; font-size: 1.1rem; font-weight: 400; opacity: 0.9; }
+    
+    .mode-selector {
+      display: flex; gap: 1rem; margin-bottom: 2rem; justify-content: center;
+    }
+    .mode-btn {
+      padding: 0.8rem 1.5rem; border: 2px solid #374151; border-radius: 10px;
+      background: transparent; color: #9ca3af; cursor: pointer; font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    .mode-btn.active {
+      border-color: #10b981; background: #10b981; color: white;
+      box-shadow: 0 4px 16px rgba(16,185,129,0.3);
+    }
+    .mode-btn:hover:not(.active) {
+      border-color: #6b7280; color: #fff;
+    }
+
+    .manual-controls { transition: opacity 0.3s ease; }
+    .manual-controls.disabled { opacity: 0.3; pointer-events: none; }
+    
+    .joystick-container { display: flex; flex-direction: column; align-items: center; }
+    .joystick { 
+      width: 140px; height: 140px; 
+      background: radial-gradient(circle, #1f2937 0%, #111827 70%);
+      border: 3px solid #374151; border-radius: 50%; position: relative; 
+      box-shadow: inset 0 4px 12px rgba(0,0,0,0.4), 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .joystick-dot { 
+      width: 25px; height: 25px; background: #10b981; border-radius: 50%; 
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      box-shadow: 0 2px 8px rgba(16,185,129,0.4); transition: all 0.1s ease;
+    }
+    
+    .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+    .btn { 
+      background: linear-gradient(45deg, #3b82f6, #2563eb); 
+      border: none; padding: 0.7rem; border-radius: 10px; color: white; 
+      cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.4); }
+    .btn:active { transform: translateY(0); }
+    
+    .camera-feed { 
+      width: 100%; aspect-ratio: 4/3; border-radius: 12px; 
+      object-fit: cover; background: #1f2937;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .sensor-grid { 
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+      gap: 1rem; margin-top: 1rem;
+    }
+    .sensor { 
+      text-align: center; padding: 1rem; 
+      background: rgba(255,255,255,0.05); border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .sensor-value { 
+      font-size: 1.8rem; font-weight: 600; 
+      background: linear-gradient(45deg, #10b981, #059669); 
+      background-clip: text;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sensor-label { font-size: 0.8rem; opacity: 0.7; margin-top: 0.5rem; }
+    
+    .slider { 
+      width: 100%; height: 6px; background: #374151; 
+      border-radius: 3px; outline: none; margin: 1rem 0;
+    }
+    .slider::-webkit-slider-thumb { 
+      appearance: none; width: 20px; height: 20px; 
+      background: #10b981; border-radius: 50%; cursor: pointer;
+    }
+    
+    .angle-display { 
+      display: flex; justify-content: space-between; margin: 1rem 0; 
+      font-size: 0.9rem; opacity: 0.8;
+    }
+    
+    @media (max-width: 768px) { 
+      .container { grid-template-columns: 1fr; } 
+      .header h1 { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌖 Mars Rover Control Panel</h1>
+    <div id="connectionStatus" class="status disconnected">DISCONNECTED</div>
+  </div>
+  
+  <div class="container">
+    <div class="card">
+      <h3>🎮 Control Mode</h3>
+      <div class="mode-selector">
+        <button class="mode-btn active" id="manualMode">Manual</button>
+        <button class="mode-btn" id="autoMode">Autonomous</button>
+      </div>
+
+      <div class="manual-controls" id="manualControls">
+        <h3>🕹️ Movement Control</h3>
+        <div class="joystick-container">
+          <div id="joystick" class="joystick">
+            <div id="joystickDot" class="joystick-dot"></div>
+          </div>
+        </div>
+        
+        <h3 style="margin-top:2rem">📹 Camera Control</h3>
+        <div class="controls">
+          <div></div>
+          <button class="btn" onclick="moveCamera('tilt',10)">▲</button>
+          <div></div>
+          <button class="btn" onclick="moveCamera('pan',-10)">◀</button>
+          <div></div>
+          <button class="btn" onclick="moveCamera('pan',10)">▶</button>
+          <div></div>
+          <button class="btn" onclick="moveCamera('tilt',-10)">▼</button>
+          <div></div>
+        </div>
+        <div class="angle-display">
+          <span>Pan: <span id="panAngle">90</span>°</span>
+          <span>Tilt: <span id="tiltAngle">90</span>°</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>📡 Live Camera Feed</h3>
+      <img src="http://192.168.0.179:81/stream" class="camera-feed" id="camStream" alt="Camera Feed">
+      
+      <h3 style="margin-top:2rem">🔍 Scanner Control</h3>
+      <div class="controls">
+        <button class="btn" onclick="send('scanner:180')">Left</button>
+        <button class="btn" onclick="send('scanner:90')">Center</button>
+        <button class="btn" onclick="send('scanner:0')">Right</button>
+      </div>
+      
+      <h3 style="margin-top:2rem">💧 Moisture Probe</h3>
+      <input type="range" min="0" max="180" value="90" id="moistureSlider" class="slider">
+    </div>
+    
+    <div class="card">
+      <h3>📊 Sensor Data</h3>
+      <div class="sensor-grid">
+        <div class="sensor">
+          <div class="sensor-value" id="distance">0</div>
+          <div class="sensor-label">Distance (cm)</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-value" id="temp">0</div>
+          <div class="sensor-label">Temp (°C)</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-value" id="humidity">0</div>
+          <div class="sensor-label">Humidity (%)</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-value" id="light">0</div>
+          <div class="sensor-label">Light (%)</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-value" id="hall">0</div>
+          <div class="sensor-label">Magnetic Field</div>
+        </div>
+        <div class="sensor">
+          <div class="sensor-value" id="gas">0</div>
+          <div class="sensor-label">Gas (MQ-135)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="alerts" class="alert"></div>
+  <div id="autoStatus" class="auto-status"></div>
+
+<script>
+  let ws = new WebSocket(`ws://${location.host}/ws`);
+  const connStatus = document.getElementById("connectionStatus");
+  const alertBox = document.getElementById("alerts");
+  const autoStatusBox = document.getElementById("autoStatus");
+  let currentCmd="stop", pan=90, tilt=90;
+  let isAutoMode = false;
+
+  ws.onopen = () => { 
+    connStatus.textContent="CONNECTED"; 
+    connStatus.className="status connected"; 
+  };
+  ws.onclose = () => { 
+    connStatus.textContent="DISCONNECTED"; 
+    connStatus.className="status disconnected"; 
+  };
+
+  // Reconnection logic
+  let lastMessageTime = Date.now();
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 3;
+  const HEARTBEAT_INTERVAL = 5000;
+
+  function reconnectWebSocket() {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.warn("⚠️ Max reconnect attempts reached, reloading page...");
+      location.reload();
+      return;
+    }
+
+    reconnectAttempts++;
+    console.log(`🔄 Attempting WebSocket reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onopen = () => {
+      console.log("✅ Reconnected to WebSocket");
+      connStatus.textContent = "CONNECTED";
+      connStatus.className = "status connected";
+      reconnectAttempts = 0;
+      lastMessageTime = Date.now();
+      attachWSHandlers();
+    };
+    ws.onclose = () => {
+      connStatus.textContent = "DISCONNECTED";
+      connStatus.className = "status disconnected";
+    };
+  }
+
+  function attachWSHandlers() {
+    ws.onmessage = (event) => {
+      lastMessageTime = Date.now();
+      const data = JSON.parse(event.data);
+      document.getElementById("distance").textContent = data.distance;
+      document.getElementById("temp").textContent = data.temp;
+      document.getElementById("humidity").textContent = data.humidity;
+      document.getElementById("light").textContent = data.light;
+      document.getElementById("hall").textContent = data.hall;
+      document.getElementById("gas").textContent = data.gas;
+      document.getElementById("panAngle").textContent = data.pan;
+      document.getElementById("tiltAngle").textContent = data.tilt;
+      
+      // Handle autonomous status messages
+      if (data.autoStatus) {
+        showAutoStatus(data.autoStatus);
+      }
+      
+      checkAlerts(data);
+    };
+  }
+
+  attachWSHandlers();
+
+  setInterval(() => {
+    if (Date.now() - lastMessageTime > HEARTBEAT_INTERVAL) {
+      console.warn("⚠️ No messages from server, trying reconnect...");
+      reconnectWebSocket();
+    }
+  }, HEARTBEAT_INTERVAL);
+
+  function send(cmd) { if (ws.readyState===WebSocket.OPEN) ws.send(cmd); }
+
+  // Mode switching
+  document.getElementById("manualMode").addEventListener("click", () => setMode("manual"));
+  document.getElementById("autoMode").addEventListener("click", () => setMode("auto"));
+
+  function setMode(mode) {
+    const manualBtn = document.getElementById("manualMode");
+    const autoBtn = document.getElementById("autoMode");
+    const manualControls = document.getElementById("manualControls");
+    
+    if (mode === "manual") {
+      isAutoMode = false;
+      manualBtn.classList.add("active");
+      autoBtn.classList.remove("active");
+      manualControls.classList.remove("disabled");
+      autoStatusBox.style.display = "none";
+      send("mode:manual");
+    } else {
+      isAutoMode = true;
+      autoBtn.classList.add("active");
+      manualBtn.classList.remove("active");
+      manualControls.classList.add("disabled");
+      send("mode:auto");
+    }
+  }
+
+  function showAutoStatus(message) {
+    autoStatusBox.textContent = `🤖 ${message}`;
+    autoStatusBox.style.display = "block";
+    
+    // Auto-hide after 3 seconds if it's not a persistent status
+    if (!message.includes("Moving") && !message.includes("Scanning")) {
+      setTimeout(() => {
+        if (autoStatusBox.textContent === `🤖 ${message}`) {
+          autoStatusBox.style.display = "none";
+        }
+      }, 3000);
+    }
+  }
+
+  // Joystick logic (only active in manual mode)
+  const joystick = document.getElementById("joystick");
+  const joystickDot = document.getElementById("joystickDot");
+  
+  function updateJoystick(clientX, clientY) {
+    if (isAutoMode) return;
+    
+    const rect = joystick.getBoundingClientRect();
+    let x = clientX - rect.left;
+    let y = clientY - rect.top;
+    
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+    const radius = rect.width / 2 - 15;
+    
+    if (distance > radius) {
+        const angle = Math.atan2(y - centerY, x - centerX);
+        x = centerX + radius * Math.cos(angle);
+        y = centerY + radius * Math.sin(angle);
+    }
+    
+    x = Math.max(15, Math.min(x, rect.width - 15));
+    y = Math.max(15, Math.min(y, rect.height - 15));
+    
+    joystickDot.style.left = `${x}px`;
+    joystickDot.style.top = `${y}px`;
+    
+    const mappedX = Math.round((x / rect.width) * 255);
+    const mappedY = Math.round((y / rect.height) * 255);
+    
+    const xOffset = mappedX - 128;
+    const yOffset = 128 - mappedY;
+    
+    let cmd = 'stop';
+    if (Math.abs(yOffset) > 40) {
+        cmd = yOffset > 0 ? 'forward' : 'backward';
+    } else if (Math.abs(xOffset) > 40) {
+        cmd = xOffset > 0 ? 'right' : 'left';
+    }
+    
+    if(cmd !== currentCmd){ 
+        send("move:" + cmd); 
+        currentCmd = cmd; 
+    }
+  }
+
+  joystick.addEventListener("mousedown", e => {
+    if (isAutoMode) return;
+    updateJoystick(e.clientX, e.clientY); 
+    joystick.addEventListener("mousemove", moveHandler);
+  });
+  document.addEventListener("mouseup", () => {
+    joystick.removeEventListener("mousemove", moveHandler); 
+    resetJoystick();
+  });
+  function moveHandler(e) { updateJoystick(e.clientX, e.clientY); }
+
+  joystick.addEventListener("touchstart", e => {
+    if (isAutoMode) return;
+    updateJoystick(e.touches[0].clientX, e.touches[0].clientY); 
+    joystick.addEventListener("touchmove", touchHandler);
+  });
+  document.addEventListener("touchend", () => {
+    joystick.removeEventListener("touchmove", touchHandler); 
+    resetJoystick();
+  });
+  function touchHandler(e) { updateJoystick(e.touches[0].clientX, e.touches[0].clientY); }
+  
+  function resetJoystick() {
+    joystickDot.style.left = "50%"; 
+    joystickDot.style.top = "50%"; 
+    if (!isAutoMode) {
+      send("move:stop"); 
+      currentCmd = "stop";
+    }
+  }
+
+  function moveCamera(axis, delta) {
+    if (isAutoMode) return;
+    if (axis === "pan") { pan = Math.min(180, Math.max(0, pan + delta)); }
+    if (axis === "tilt") { tilt = Math.min(180, Math.max(0, tilt + delta)); }
+    send(`camera:${pan},${tilt}`);
+  }
+
+  document.getElementById("moistureSlider").addEventListener("input", e => {
+    if (!isAutoMode) send(`moisture:${e.target.value}`);
+  });
+
+  function checkAlerts(d) {
+    let msgs = [];
+    if (d.distance < 20 && !isAutoMode) msgs.push("⚠️ Obstacle detected!");
+    if (d.temp > 35) msgs.push("🔥 High temperature warning!");
+    if (d.humidity > 80) msgs.push("💧 High humidity detected!");
+    if (d.light < 20) msgs.push("🌑 Low light conditions!");
+    if (d.hall > 75) msgs.push("🧲 Strong magnetic field!");
+    if (d.gas > 300) msgs.push("☣️ High gas levels detected!");
+    
+    if (msgs.length > 0) {
+      alertBox.innerHTML = msgs.join(" • ");
+      alertBox.style.display = "block";
+    } else {
+      alertBox.style.display = "none";
+    }
+  }
+</script>
+</body>
+</html>
